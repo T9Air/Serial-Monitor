@@ -10,26 +10,26 @@ This is a serial monitor that allows you to switch baud rates, input to the seri
     pip install pyserial
     ```
 
-2. List ports
-3. Open port
-4. Close port
-5. Set baud rate
-6. Write to port
-7. Compile and upload
-8. Exit
+2. Run the serial monitor:
+
+    ```sh
+    python serial_monitor.py
+    ```
+
+3. Use the graphical interface to interact with the serial monitor.
 
 ### Switching Baud Rates
 
-To switch baud rates, use the "Set baud rate" command and enter the desired baud rate.
+To switch baud rates, enter the desired baud rate in the "Baud Rate" field and click the "Set Baud Rate" button.
 
 ### Input to the Serial Interface
 
-To input to the serial interface, use the "Write to port" command and enter the data you want to send.
+To input to the serial interface, enter the data you want to send in the "Data" field and click the "Write to Port" button.
 
 ### Finding and Switching Between Open Serial Ports
 
-To find open serial ports, use the "List ports" command. To switch between open serial ports, use the "Open port" command and enter the desired port.
+To find open serial ports, click the "List Ports" button. To switch between open serial ports, enter the desired port in the "Port" field and click the "Open Port" button.
 
 ### Using Arduino-CLI to Compile and Upload Arduino Code
 
-To compile and upload Arduino code, use the "Compile and upload" command. Enter the sketch path, board, and port. The serial monitoring will be automatically switched off during the upload process and will resume once the upload is complete.
+To compile and upload Arduino code, enter the sketch path, board, and port in the respective fields and click the "Compile and Upload" button. The serial monitoring will be automatically switched off during the upload process and will resume once the upload is complete.
