@@ -4,13 +4,19 @@ This is a serial monitor that allows you to switch baud rates, input to the seri
 
 ## How to Use the Serial Monitor
 
-1. List ports
-2. Open port
-3. Close port
-4. Set baud rate
-5. Write to port
-6. Compile and upload
-7. Exit
+1. Install the required `pyserial` package:
+
+    ```sh
+    pip install pyserial
+    ```
+
+2. List ports
+3. Open port
+4. Close port
+5. Set baud rate
+6. Write to port
+7. Compile and upload
+8. Exit
 
 ### Switching Baud Rates
 
