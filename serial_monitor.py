@@ -58,12 +58,38 @@ class SerialMonitor:
             self.serial_port.write((data + line_ending).encode('utf-8'))
 
     def compile_and_upload(self, sketch_path, board, port):
+        # Run compile and upload in a separate thread to keep GUI responsive
+        threading.Thread(
+            target=self.run_compile_and_upload, args=(sketch_path, board, port), daemon=True
+        ).start()
+
+    def run_compile_and_upload(self, sketch_path, board, port):
         self.close_port()
-        compile_cmd = f"arduino-cli compile --fqbn {board} {sketch_path}"
-        upload_cmd = f"arduino-cli upload -p {port} --fqbn {board} {sketch_path}"
-        subprocess.run(compile_cmd, shell=True)
-        subprocess.run(upload_cmd, shell=True)
-        self.open_port(port)
+        compile_cmd = ["arduino-cli", "compile", "--fqbn", board, sketch_path]
+        upload_cmd = ["arduino-cli", "upload", "-p", port, "--fqbn", board, sketch_path]
+
+        for cmd_name, cmd in [("Compilation", compile_cmd), ("Upload", upload_cmd)]:
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            )
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    # Use after() to safely update GUI from another thread
+                    self.root.after(0, self.append_to_upload_output, output)
+            if process.returncode != 0:
+                self.root.after(0, self.append_to_upload_output, f"{cmd_name} failed.\n")
+                return
+
+        self.root.after(0, self.append_to_upload_output, "Compile and upload successful.\n")
+        # Re-open the port after upload
+        self.root.after(0, self.open_port, port)
+
+    def append_to_upload_output(self, text):
+        self.upload_output_text.insert(tk.END, text)
+        self.upload_output_text.see(tk.END)
 
     def auto_detect_board(self):
         ports = serial.tools.list_ports.comports()
@@ -86,14 +112,33 @@ class SerialMonitor:
             else:
                 board_type = 'Unknown'
             
-            # Update GUI elements
-            self.board_entry.delete(0, tk.END)
-            self.board_entry.insert(0, board_type)
-            self.selected_port = port.device
-            self.port_display_label.config(text=f"Selected Port: {self.selected_port}")
-            self.output_text.insert(tk.END, f"Detected Arduino board: {board_type} on port {self.selected_port}\n")
+            # Map board_type to FQBN
+            board_fqbn_map = {
+                'uno': 'arduino:avr:uno',
+                'mega': 'arduino:avr:mega',
+                'nano': 'arduino:avr:nano',
+                'leonardo': 'arduino:avr:leonardo',
+                # Add more mappings as needed
+            }
+            
+            fqbn = board_fqbn_map.get(board_type.lower(), None)
+            if fqbn:
+                # Update the board selection
+                self.board_combo.set(fqbn)
+                self.output_text.insert(tk.END, f"Detected Arduino board: {board_type} on port {self.selected_port}\n")
+            else:
+                self.output_text.insert(tk.END, f"Board type '{board_type}' not recognized.\n")
         else:
             self.output_text.insert(tk.END, "No Arduino board detected.\n")
+
+    def auto_connect_first_port(self):
+        ports = self.list_ports()
+        if ports:
+            self.selected_port = ports[0]
+            self.port_display_label.config(text=f"Selected Port: {self.selected_port}")
+            self.open_port(self.selected_port)
+            return True
+        return False
 
     def create_gui(self):
         self.root = tk.Tk()
@@ -191,8 +236,20 @@ class SerialMonitor:
         self.board_label = tk.Label(upload_frame, text="Board:")
         self.board_label.grid(row=1, column=0)
 
-        self.board_entry = tk.Entry(upload_frame)
-        self.board_entry.grid(row=1, column=1)
+        # Create a list of available FQBNs
+        self.board_options = [
+            "arduino:avr:uno",
+            "arduino:avr:mega",
+            "arduino:avr:nano",
+            "arduino:avr:leonardo",
+            "arduino:samd:mkr1000",
+            # Add more FQBNs as needed
+        ]
+
+        self.board_var = tk.StringVar()
+        self.board_combo = ttk.Combobox(upload_frame, values=self.board_options, textvariable=self.board_var, state='readonly')
+        self.board_combo.grid(row=1, column=1)
+        self.board_combo.set(self.board_options[0])  # Set default value
 
         self.compile_upload_button = tk.Button(upload_frame, text="Compile and Upload",
                                                command=self.compile_and_upload_gui)
@@ -202,7 +259,24 @@ class SerialMonitor:
                                                   command=self.auto_detect_board)
         self.auto_detect_board_button.grid(row=3, column=0, columnspan=2)
 
+        # Add output text area to the Upload Sketch tab
+        self.upload_output_frame = tk.Frame(upload_frame)
+        self.upload_output_frame.grid(row=4, column=0, columnspan=2, sticky='nsew')
+        upload_frame.rowconfigure(4, weight=1)
+
+        self.upload_scrollbar = tk.Scrollbar(self.upload_output_frame)
+        self.upload_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.upload_output_text = tk.Text(
+            self.upload_output_frame, height=10, width=50, yscrollcommand=self.upload_scrollbar.set
+        )
+        self.upload_output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.upload_scrollbar.config(command=self.upload_output_text.yview)
+
+        # Auto-detect board and connect to first port
         self.auto_detect_board()
+        if not self.selected_port:  # If auto-detect didn't find a port
+            self.auto_connect_first_port()
 
         self.root.mainloop()
 
@@ -295,9 +369,9 @@ class SerialMonitor:
             self.output_text.insert(tk.END, "Selected file is not an Arduino sketch (.ino)\n")
             return
             
-        board = self.board_entry.get()
+        board = self.board_var.get()
         if not board:
-            self.output_text.insert(tk.END, "Please enter a board type\n")
+            self.upload_output_text.insert(tk.END, "Please select a board\n")
             return
             
         if not self.selected_port:
