@@ -98,95 +98,110 @@ class SerialMonitor:
     def create_gui(self):
         self.root = tk.Tk()
         self.root.title("Serial Monitor")
-        
-        # Configure column weights to make them expandable
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
+
+        # Create a notebook (tabs)
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill='both', expand=True)
+
+        # Create frames for each tab
+        monitor_frame = ttk.Frame(notebook)
+        upload_frame = ttk.Frame(notebook)
+
+        notebook.add(monitor_frame, text='Serial Monitor')
+        notebook.add(upload_frame, text='Upload Sketch')
+
+        # --- Serial Monitor Tab ---
+        # Configure column weights
+        monitor_frame.columnconfigure(0, weight=1)
+        monitor_frame.columnconfigure(1, weight=1)
 
         self.selected_port = None  # Variable to store the selected port
 
-        self.select_port_button = tk.Button(self.root, text="Select Port", command=self.select_port_gui)
+        self.select_port_button = tk.Button(monitor_frame, text="Select Port", command=self.select_port_gui)
         self.select_port_button.grid(row=0, column=0)
 
-        self.port_display_label = tk.Label(self.root, text="Selected Port: None")
+        self.port_display_label = tk.Label(monitor_frame, text="Selected Port: None")
         self.port_display_label.grid(row=0, column=1)
 
-        self.baud_label = tk.Label(self.root, text="Baud Rate:")
+        self.baud_label = tk.Label(monitor_frame, text="Baud Rate:")
         self.baud_label.grid(row=1, column=0)
 
-        self.baud_combo = ttk.Combobox(self.root, values=self.STANDARD_BAUD_RATES, state='readonly')
+        self.baud_combo = ttk.Combobox(monitor_frame, values=self.STANDARD_BAUD_RATES, state='readonly')
         self.baud_combo.grid(row=1, column=1)
         self.baud_combo.set(9600)  # Set default value
 
         # Add status indicator
-        self.status_label = tk.Label(self.root, text="Status: Disconnected", fg="red")
+        self.status_label = tk.Label(monitor_frame, text="Status: Disconnected", fg="red")
         self.status_label.grid(row=2, column=0, columnspan=2)
-        
+
         # Add line ending options
         self.line_ending_var = tk.StringVar(value="\n")
-        self.line_ending_frame = tk.Frame(self.root)
+        self.line_ending_frame = tk.Frame(monitor_frame)
         self.line_ending_frame.grid(row=3, column=0, columnspan=2)
-        
-        tk.Radiobutton(self.line_ending_frame, text="No Line Ending", 
-                      variable=self.line_ending_var, value="").pack(side=tk.LEFT)
-        tk.Radiobutton(self.line_ending_frame, text="New Line", 
-                      variable=self.line_ending_var, value="\n").pack(side=tk.LEFT)
-        tk.Radiobutton(self.line_ending_frame, text="Carriage Return", 
-                      variable=self.line_ending_var, value="\r").pack(side=tk.LEFT)
-        tk.Radiobutton(self.line_ending_frame, text="Both NL & CR", 
-                      variable=self.line_ending_var, value="\r\n").pack(side=tk.LEFT)
 
-        # Create a frame for sketch selection
-        self.sketch_frame = tk.Frame(self.root)
-        self.sketch_frame.grid(row=4, column=0, columnspan=2, sticky='ew')
-        
-        self.sketch_label = tk.Label(self.sketch_frame, text="Sketch:")
-        self.sketch_label.pack(side=tk.LEFT)
-        
-        self.sketch_entry = tk.Entry(self.sketch_frame)
-        self.sketch_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        self.browse_button = tk.Button(self.sketch_frame, text="Browse", command=self.browse_sketch)
-        self.browse_button.pack(side=tk.RIGHT)
+        tk.Radiobutton(self.line_ending_frame, text="No Line Ending",
+                       variable=self.line_ending_var, value="").pack(side=tk.LEFT)
+        tk.Radiobutton(self.line_ending_frame, text="New Line",
+                       variable=self.line_ending_var, value="\n").pack(side=tk.LEFT)
+        tk.Radiobutton(self.line_ending_frame, text="Carriage Return",
+                       variable=self.line_ending_var, value="\r").pack(side=tk.LEFT)
+        tk.Radiobutton(self.line_ending_frame, text="Both NL & CR",
+                       variable=self.line_ending_var, value="\r\n").pack(side=tk.LEFT)
 
-        self.board_label = tk.Label(self.root, text="Board:")
-        self.board_label.grid(row=5, column=0)
-        self.board_entry = tk.Entry(self.root)
-        self.board_entry.grid(row=5, column=1)
-
-        self.set_baud_rate_button = tk.Button(self.root, text="Set Baud Rate", command=self.set_baud_rate_gui)
-        self.set_baud_rate_button.grid(row=6, column=0)
-
-        self.compile_upload_button = tk.Button(self.root, text="Compile and Upload", command=self.compile_and_upload_gui)
-        self.compile_upload_button.grid(row=6, column=1)
-
-        self.data_frame = tk.Frame(self.root)
-        self.data_frame.grid(row=7, column=0, columnspan=2, sticky='ew')
-        self.root.grid_rowconfigure(7, weight=0)  # Don't expand input row
+        # Data input field
+        self.data_frame = tk.Frame(monitor_frame)
+        self.data_frame.grid(row=4, column=0, columnspan=2, sticky='ew')
+        monitor_frame.rowconfigure(4, weight=0)  # Don't expand input row
 
         self.data_entry = tk.Entry(self.data_frame)
         self.data_entry.pack(fill=tk.X, expand=True, padx=5, pady=2)
         self.data_entry.bind("<Return>", self.write_to_port_gui)
         self.data_entry.focus_set()  # Auto focus on the input field
 
-        # Move output frame to row 8
-        self.output_frame = tk.Frame(self.root)
-        self.output_frame.grid(row=8, column=0, columnspan=2, sticky='nsew')
-        self.root.grid_rowconfigure(8, weight=1)  # Make output frame expandable
-        
+        # Output frame
+        self.output_frame = tk.Frame(monitor_frame)
+        self.output_frame.grid(row=5, column=0, columnspan=2, sticky='nsew')
+        monitor_frame.rowconfigure(5, weight=1)  # Make output frame expandable
+
         self.scrollbar = tk.Scrollbar(self.output_frame)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.output_text = tk.Text(self.output_frame, height=10, width=50, 
-                                  yscrollcommand=self.scrollbar.set)
+
+        self.output_text = tk.Text(self.output_frame, height=10, width=50, yscrollcommand=self.scrollbar.set)
         self.output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.scrollbar.config(command=self.output_text.yview)
 
-        # Move auto detect board button to row 9
-        self.auto_detect_board_button = tk.Button(self.root, text="Auto Detect Board", command=self.auto_detect_board)
-        self.auto_detect_board_button.grid(row=9, column=0, columnspan=2)
+        # --- Upload Sketch Tab ---
+        # Configure column weights
+        upload_frame.columnconfigure(0, weight=1)
+        upload_frame.columnconfigure(1, weight=1)
 
-        # Now safe to call auto_detect_board
+        # Sketch selection
+        self.sketch_frame = tk.Frame(upload_frame)
+        self.sketch_frame.grid(row=0, column=0, columnspan=2, sticky='ew')
+
+        self.sketch_label = tk.Label(self.sketch_frame, text="Sketch:")
+        self.sketch_label.pack(side=tk.LEFT)
+
+        self.sketch_entry = tk.Entry(self.sketch_frame)
+        self.sketch_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.browse_button = tk.Button(self.sketch_frame, text="Browse", command=self.browse_sketch)
+        self.browse_button.pack(side=tk.RIGHT)
+
+        self.board_label = tk.Label(upload_frame, text="Board:")
+        self.board_label.grid(row=1, column=0)
+
+        self.board_entry = tk.Entry(upload_frame)
+        self.board_entry.grid(row=1, column=1)
+
+        self.compile_upload_button = tk.Button(upload_frame, text="Compile and Upload",
+                                               command=self.compile_and_upload_gui)
+        self.compile_upload_button.grid(row=2, column=0, columnspan=2)
+
+        self.auto_detect_board_button = tk.Button(upload_frame, text="Auto Detect Board",
+                                                  command=self.auto_detect_board)
+        self.auto_detect_board_button.grid(row=3, column=0, columnspan=2)
+
         self.auto_detect_board()
 
         self.root.mainloop()
