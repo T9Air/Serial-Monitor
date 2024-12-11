@@ -40,6 +40,12 @@ class SerialMonitor:
             self.serial_port.close()
             self.serial_port = None
             self.status_label.config(text="Status: Disconnected", fg="red")
+            self.port_display_label.config(text="Selected Port: None")  # Clear port display
+            self.selected_port = None  # Reset selected port
+
+    def disconnect_connection(self):
+        self.close_port()
+        self.output_text.insert(tk.END, "Disconnected from port\n")
 
     def set_baud_rate(self, baud_rate):
         self.baud_rate = baud_rate
@@ -48,9 +54,24 @@ class SerialMonitor:
 
     def read_from_port(self):
         while self.is_monitoring:
-            if self.serial_port.in_waiting > 0:
-                data = self.serial_port.read(self.serial_port.in_waiting)
-                self.display_data(data.decode('utf-8'))
+            try:
+                if self.serial_port and self.serial_port.is_open:
+                    if self.serial_port.in_waiting > 0:
+                        data = self.serial_port.read(self.serial_port.in_waiting)
+                        self.root.after(0, self.display_data, data.decode('utf-8'))
+                time.sleep(0.1)  # Add small delay to prevent CPU hogging
+            except serial.SerialException:
+                # Port disconnected or error occurred
+                self.root.after(0, self.handle_disconnect)
+                break
+            except Exception as e:
+                self.root.after(0, self.display_data, f"Error reading from port: {str(e)}\n")
+                break
+
+    def handle_disconnect(self):
+        """Handle unexpected port disconnection"""
+        self.close_port()
+        self.output_text.insert(tk.END, "Port disconnected unexpectedly\n")
 
     def write_to_port(self, data):
         if self.serial_port:
@@ -175,14 +196,18 @@ class SerialMonitor:
         self.baud_combo.grid(row=1, column=1)
         self.baud_combo.set(9600)  # Set default value
 
-        # Add status indicator
-        self.status_label = tk.Label(monitor_frame, text="Status: Disconnected", fg="red")
-        self.status_label.grid(row=2, column=0, columnspan=2)
+        # Move disconnect button to new row
+        self.disconnect_button = tk.Button(monitor_frame, text="Disconnect", command=self.disconnect_connection)
+        self.disconnect_button.grid(row=2, column=0, columnspan=2)  # New row with column span
 
-        # Add line ending options
+        # Shift status indicator down
+        self.status_label = tk.Label(monitor_frame, text="Status: Disconnected", fg="red")
+        self.status_label.grid(row=3, column=0, columnspan=2)
+
+        # Shift line ending options down
         self.line_ending_var = tk.StringVar(value="\n")
         self.line_ending_frame = tk.Frame(monitor_frame)
-        self.line_ending_frame.grid(row=3, column=0, columnspan=2)
+        self.line_ending_frame.grid(row=4, column=0, columnspan=2)
 
         tk.Radiobutton(self.line_ending_frame, text="No Line Ending",
                        variable=self.line_ending_var, value="").pack(side=tk.LEFT)
@@ -195,8 +220,8 @@ class SerialMonitor:
 
         # Data input field
         self.data_frame = tk.Frame(monitor_frame)
-        self.data_frame.grid(row=4, column=0, columnspan=2, sticky='ew')
-        monitor_frame.rowconfigure(4, weight=0)  # Don't expand input row
+        self.data_frame.grid(row=5, column=0, columnspan=2, sticky='ew')
+        monitor_frame.rowconfigure(5, weight=0)  # Don't expand input row
 
         self.data_entry = tk.Entry(self.data_frame)
         self.data_entry.pack(fill=tk.X, expand=True, padx=5, pady=2)
@@ -205,8 +230,8 @@ class SerialMonitor:
 
         # Output frame
         self.output_frame = tk.Frame(monitor_frame)
-        self.output_frame.grid(row=5, column=0, columnspan=2, sticky='nsew')
-        monitor_frame.rowconfigure(5, weight=1)  # Make output frame expandable
+        self.output_frame.grid(row=6, column=0, columnspan=2, sticky='nsew')
+        monitor_frame.rowconfigure(6, weight=1)  # Make output frame expandable
 
         self.scrollbar = tk.Scrollbar(self.output_frame)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
