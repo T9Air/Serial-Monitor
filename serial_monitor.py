@@ -161,6 +161,19 @@ class SerialMonitor:
             return True
         return False
 
+    def clear_output(self):
+        """Clear the serial monitor output text"""
+        self.output_text.delete(1.0, tk.END)
+        self.output_text.insert(tk.END, "Serial monitor cleared\n")
+
+    def reconnect(self):
+        """Reconnect to the last known port"""
+        if self.selected_port:
+            self.open_port(self.selected_port)
+            self.output_text.insert(tk.END, f"Attempting to reconnect to {self.selected_port}\n")
+        else:
+            self.output_text.insert(tk.END, "No previous port to reconnect to\n")
+
     def create_gui(self):
         self.root = tk.Tk()
         self.root.title("Serial Monitor")
@@ -196,18 +209,39 @@ class SerialMonitor:
         self.baud_combo.grid(row=1, column=1)
         self.baud_combo.set(9600)  # Set default value
 
-        # Move disconnect button to new row
-        self.disconnect_button = tk.Button(monitor_frame, text="Disconnect", command=self.disconnect_connection)
-        self.disconnect_button.grid(row=2, column=0, columnspan=2)  # New row with column span
+        # Create button frame for horizontal alignment
+        button_frame = tk.Frame(monitor_frame)
+        button_frame.grid(row=2, column=0, columnspan=2)
 
-        # Shift status indicator down
+        # Place buttons side by side in the button frame
+        self.disconnect_button = tk.Button(button_frame, text="Disconnect", command=self.disconnect_connection)
+        self.disconnect_button.pack(side=tk.LEFT, padx=5)
+
+        self.reconnect_button = tk.Button(button_frame, text="Reconnect", command=self.reconnect)
+        self.reconnect_button.pack(side=tk.LEFT, padx=5)
+
+        self.clear_button = tk.Button(button_frame, text="Clear Monitor", command=self.clear_output)
+        self.clear_button.pack(side=tk.LEFT, padx=5)
+
+        # Status indicator now directly after button frame
         self.status_label = tk.Label(monitor_frame, text="Status: Disconnected", fg="red")
         self.status_label.grid(row=3, column=0, columnspan=2)
 
-        # Shift line ending options down
+        # Line ending options (now at row 4)
         self.line_ending_var = tk.StringVar(value="\n")
         self.line_ending_frame = tk.Frame(monitor_frame)
         self.line_ending_frame.grid(row=4, column=0, columnspan=2)
+
+        # Update subsequent row numbers
+        # Data frame moves to row 5
+        self.data_frame = tk.Frame(monitor_frame)
+        self.data_frame.grid(row=5, column=0, columnspan=2, sticky='ew')
+        monitor_frame.rowconfigure(5, weight=0)
+
+        # Output frame moves to row 6
+        self.output_frame = tk.Frame(monitor_frame)
+        self.output_frame.grid(row=6, column=0, columnspan=2, sticky='nsew')
+        monitor_frame.rowconfigure(6, weight=1)
 
         tk.Radiobutton(self.line_ending_frame, text="No Line Ending",
                        variable=self.line_ending_var, value="").pack(side=tk.LEFT)
@@ -218,20 +252,20 @@ class SerialMonitor:
         tk.Radiobutton(self.line_ending_frame, text="Both NL & CR",
                        variable=self.line_ending_var, value="\r\n").pack(side=tk.LEFT)
 
-        # Data input field
+        # Data input field moves to row 7
         self.data_frame = tk.Frame(monitor_frame)
-        self.data_frame.grid(row=5, column=0, columnspan=2, sticky='ew')
-        monitor_frame.rowconfigure(5, weight=0)  # Don't expand input row
+        self.data_frame.grid(row=7, column=0, columnspan=2, sticky='ew')
+        monitor_frame.rowconfigure(7, weight=0)  # Don't expand input row
 
         self.data_entry = tk.Entry(self.data_frame)
         self.data_entry.pack(fill=tk.X, expand=True, padx=5, pady=2)
         self.data_entry.bind("<Return>", self.write_to_port_gui)
         self.data_entry.focus_set()  # Auto focus on the input field
 
-        # Output frame
+        # Output frame moves to row 8
         self.output_frame = tk.Frame(monitor_frame)
-        self.output_frame.grid(row=6, column=0, columnspan=2, sticky='nsew')
-        monitor_frame.rowconfigure(6, weight=1)  # Make output frame expandable
+        self.output_frame.grid(row=8, column=0, columnspan=2, sticky='nsew')
+        monitor_frame.rowconfigure(8, weight=1)  # Make output frame expandable
 
         self.scrollbar = tk.Scrollbar(self.output_frame)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
